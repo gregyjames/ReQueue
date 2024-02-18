@@ -1,58 +1,51 @@
 ﻿using MessagePack;
 using StackExchange.Redis;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ReQueue
 {
     public class MessageQueue<T>
     {
-        private ConnectionMultiplexer connectionMultiplexer = null;
-        private IDatabase db = null;
+        private readonly IDatabase _db;
+        private readonly string _redisKey;
 
         /// <summary>
         /// Create a new MessageQueue object.
         /// </summary>
-        /// <param name="connectionString">The redis connection string.</param>
-        /// <param name="dbnumber">The number of the database to use.</param>
-        public MessageQueue(string connectionString, int dbnumber = 0)
+        /// <param name="database">The redis database to use.</param>
+        /// <param name="redisKey">The name of the redis list.</param>
+        internal MessageQueue(IDatabase database, string redisKey)
         {
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new ArgumentNullException("connectionString");
-            }
-            connectionMultiplexer = ConnectionMultiplexer.Connect(connectionString);
-            db = connectionMultiplexer.GetDatabase(dbnumber);
+            _db = database;
+            _redisKey = redisKey;
         }
 
         /// <summary>
         /// Adds the item to the message queue.
         /// </summary>
-        /// <param name="queueKey">The name of the queue.</param>
         /// <param name="item">The item to be added.</param>
         /// <returns></returns>
-        public async Task EnqueueMessages(string queueKey, T item)
+        public async Task EnqueueMessages(T item)
         {
             byte[] bytes = MessagePackSerializer.Serialize(item);
             string base64String = Convert.ToBase64String(bytes);
-            await db.ListLeftPushAsync(queueKey, base64String);
+            await _db.ListLeftPushAsync(_redisKey, base64String);
         }
 
         /// <summary>
-        /// Task to wait and recieve all messages from the queue.
+        /// Task to wait and receive all messages from the queue.
         /// </summary>
-        /// <param name="queueKey">The name of the queue.</param>
-        /// <param name="action">The action to be run when an item is recieved.</param>
+        /// <param name="action">The action to be run when an item is received.</param>
         /// <param name="cancellationToken">The token to be used for cancelling the task.</param>
-        /// <param name="filter">Optional filter for recieved messages. By default, items that fail the filter are requeued.</param>
+        /// <param name="filter">Optional filter for received messages. By default, items that fail the filter are re-queued.</param>
         /// <returns></returns>
-        public async Task DequeueMessages(string queueKey, Action<T> action, CancellationToken cancellationToken, Func<T, bool> filter = null)
+        public async Task DequeueMessages(Action<T> action, CancellationToken cancellationToken, Func<T, bool> filter = null!)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     // Use BLPOP to block and wait for an item to be added to the list
-                    var result = await db.ListRightPopAsync(queueKey); 
+                    var result = await _db.ListRightPopAsync(_redisKey); 
 
                     if (result != RedisValue.Null)
                     {
@@ -70,7 +63,7 @@ namespace ReQueue
                             }
                             else
                             {
-                                await EnqueueMessages(queueKey, deserialized);
+                                await EnqueueMessages(deserialized);
                             }
                         }
                         else
@@ -95,7 +88,7 @@ namespace ReQueue
         /// <returns></returns>
         public async Task ClearQueue(string queueKey)
         {
-            await db.KeyDeleteAsync(queueKey);
+            await _db.KeyDeleteAsync(queueKey);
         }
     }
 }

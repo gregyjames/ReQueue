@@ -1,16 +1,19 @@
 ﻿
+using ReQueue;
+
 namespace RequeueTesterProducer
 {
     internal class Program
     {
         static async Task Main(string[] args)
         {
-            var queue = new ReQueue.MessageQueue<Data>("localhost", 0);
+            var manager = new ConnectionHub("localhost", 0);
+            var queue = manager.GetMessageQueue<Data>("numQueue");
 
             for (int i = 0; i < 1000; i++)
             {
                 var item = new Data { Foo = i };
-                await queue.EnqueueMessages("numQueue", item);
+                await queue.EnqueueMessages(item);
                 Console.WriteLine($"Sending -> {i}");
             }
 
