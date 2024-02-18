@@ -22,12 +22,13 @@ internal class Program
 {
     static async Task Main(string[] args)
     {
-        var queue = new ReQueue.MessageQueue<Data>("localhost", 0);
+        var manager = new ConnectionHub("localhost", 0);
+        var queue = manager.GetMessageQueue<Data>("numQueue");
 
         for (int i = 0; i < 100; i++)
         {
             var item = new Data { Foo = i };
-            await queue.EnqueueMessages("numQueue", item);
+            await queue.EnqueueMessages(item);
             Console.WriteLine($"Sending -> {i}");
         }
 
@@ -42,11 +43,12 @@ internal class Program
 {
     static async Task Main(string[] args)
     {
-        var queue = new ReQueue.MessageQueue<Data>("localhost", 0);
+        var manager = new ConnectionHub("localhost", 0);
+        var queue = manager.GetMessageQueue<Data>("numQueue");
         var tokenSource = new CancellationTokenSource();
         tokenSource.CancelAfter(TimeSpan.FromDays(6));
 
-        await queue.DequeueMessages("numQueue", new Action<Data>(x => {
+        await queue.DequeueMessages(new Action<Data>(x => {
             Console.WriteLine($"Recieved -> {x.Foo}");
         }), tokenSource.Token);
         Console.ReadLine();
@@ -55,7 +57,7 @@ internal class Program
 ```
 ## Filter Example
 ```csharp
-queue.DequeueMessages("numQueue", new Action<Data>(x => {
+queue.DequeueMessages(new Action<Data>(x => {
     Console.WriteLine($"Recieved -> {x.Foo}");
 }), tokenSource.Token, new Func<Data, bool>((data) => {
     if (data != null)
