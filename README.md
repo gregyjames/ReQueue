@@ -48,28 +48,25 @@ internal class Program
         var tokenSource = new CancellationTokenSource();
         tokenSource.CancelAfter(TimeSpan.FromDays(6));
 
-        await queue.DequeueMessages(new Action<Data>(x => {
+        await queue.DequeueMessages(x => {
             Console.WriteLine($"Recieved -> {x.Foo}");
-        }), tokenSource.Token);
+        }, tokenSource.Token);
         Console.ReadLine();
     }
 }
 ```
 ## Filter Example
+Filters out messages that don't meet set criteria. By default, messages that are filtered out will be readded to the end of the queue.
 ```csharp
-queue.DequeueMessages(new Action<Data>(x => {
+queue.DequeueMessages(x => {
     Console.WriteLine($"Recieved -> {x.Foo}");
-}), tokenSource.Token, new Func<Data, bool>((data) => {
-    if (data != null)
-    {
-        if (data.Foo % 2 == 0)
-        {
-            return true;
-        }
+}, tokenSource.Token, data => {
+    if (data.Foo % 2 == 0){
+        return true;
     }
-
+    
     return false;
-}));
+});
 ```
 # License
 MIT License
