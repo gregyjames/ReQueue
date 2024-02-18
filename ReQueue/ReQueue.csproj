@@ -13,7 +13,7 @@
     <RepositoryUrl>https://github.com/gregyjames/ReQueue</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>redis, ampq, messaging, async, rabbitmq</PackageTags>
+    <PackageTags>redis, ampq, messaging, async, rabbitmq, asyncronous, asyncronous-messaging</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <Copyright>Greg James 2024</Copyright>
