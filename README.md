@@ -1,4 +1,6 @@
 [![.NET](https://github.com/gregyjames/ReQueue/actions/workflows/dotnet.yml/badge.svg)](https://github.com/gregyjames/ReQueue/actions/workflows/dotnet.yml)
+![NuGet Downloads](https://img.shields.io/nuget/dt/ReQueue)
+![NuGet Version](https://img.shields.io/nuget/v/ReQueue)
 
 # ReQueue
 C# Library to use a redis list for asynchronous messaging. Perfect for small projects you don't want to set up RabbitMQ for.
