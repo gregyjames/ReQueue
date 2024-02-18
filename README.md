@@ -3,7 +3,7 @@
 ![NuGet Version](https://img.shields.io/nuget/v/ReQueue)
 
 # ReQueue
-C# Library to use a redis list for asynchronous messaging. Perfect for small projects you don't want to set up RabbitMQ for.
+C# Library to use a redis list for asynchronous messaging. Perfect for small projects you don't want to set up RabbitMQ for. Try using it with a fast redis implemetation like [Dragonfly](https://github.com/dragonflydb/dragonfly).
 
 # Example
 ## Object 
@@ -53,7 +53,22 @@ internal class Program
     }
 }
 ```
+## Filter Example
+```csharp
+queue.DequeueMessages("numQueue", new Action<Data>(x => {
+    Console.WriteLine($"Recieved -> {x.Foo}");
+}), tokenSource.Token, new Func<Data, bool>((data) => {
+    if (data != null)
+    {
+        if (data.Foo % 2 == 0)
+        {
+            return true;
+        }
+    }
 
+    return false;
+}));
+```
 # License
 MIT License
 
