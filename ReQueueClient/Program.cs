@@ -21,7 +21,7 @@ namespace ReQueueClient
                 }, tokenSource.Token, (data) => data.Foo % 2 != 0)
             );
 
-            await queue.ClearQueue("numQueue");
+            await queue.ClearQueue();
             Console.ReadLine();
         }
     }

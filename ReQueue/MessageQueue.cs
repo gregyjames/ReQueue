@@ -26,8 +26,8 @@ namespace ReQueue
         /// <returns></returns>
         public async Task EnqueueMessages(T item)
         {
-            byte[] bytes = MessagePackSerializer.Serialize(item);
-            string base64String = Convert.ToBase64String(bytes);
+            var bytes = MessagePackSerializer.Serialize(item);
+            var base64String = Convert.ToBase64String(bytes);
             await _db.ListLeftPushAsync(_redisKey, base64String);
         }
 
@@ -50,8 +50,8 @@ namespace ReQueue
                     if (result != RedisValue.Null)
                     {
                         // Process the item
-                        string item = result.ToString();
-                        byte[] decodedData = Convert.FromBase64String(item);
+                        var item = result.ToString();
+                        var decodedData = Convert.FromBase64String(item);
                         var deserialized = MessagePackSerializer.Deserialize<T>(decodedData);
 
                         if(filter != null)
@@ -84,11 +84,10 @@ namespace ReQueue
         /// <summary>
         /// Clears all unprocessed items from the queue.
         /// </summary>
-        /// <param name="queueKey">The name of the queue.</param>
         /// <returns></returns>
-        public async Task ClearQueue(string queueKey)
+        public async Task ClearQueue()
         {
-            await _db.KeyDeleteAsync(queueKey);
+            await _db.KeyDeleteAsync(_redisKey);
         }
     }
 }
