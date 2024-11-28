@@ -1,4 +1,4 @@
-﻿using MessagePack;
+using MessagePack;
 using StackExchange.Redis;
 
 namespace ReQueue
@@ -70,7 +70,6 @@ namespace ReQueue
                         {
                             action.Invoke(deserialized);
                         }
-                        
                     }
                 }
                 catch (Exception ex)
