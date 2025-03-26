@@ -3,71 +3,68 @@
 ![NuGet Version](https://img.shields.io/nuget/v/ReQueue)
 
 # ReQueue
-C# Library to use a redis list for asynchronous messaging. Perfect for small projects you don't want to set up RabbitMQ for. Try using it with a fast redis implemetation like [Dragonfly](https://github.com/dragonflydb/dragonfly).
+C# Library to use a redis streams for asynchronous messaging. Perfect for small projects you don't want to set up RabbitMQ for. Try using it with a fast redis implemetation like [Dragonfly](https://github.com/dragonflydb/dragonfly).
 
 # Example
-## Object 
-The library uses MessagePack under the hood, so make sure your object is marked as MessagePack serilizable. 
-```csharp
-[MessagePackObject(keyAsPropertyName: true)]
-public class Data
-{
-    public int Foo { get; set; }
-}
-```
-
 ## Producer
 ```csharp
 internal class Program
-{
-    static async Task Main(string[] args)
     {
-        var manager = new ConnectionHub("localhost", 0);
-        var queue = manager.GetMessageQueue<Data>("numQueue");
-
-        for (int i = 0; i < 100; i++)
+        static async Task Main(string[] args)
         {
-            var item = new Data { Foo = i };
-            await queue.EnqueueMessages(item);
-            Console.WriteLine($"Sending -> {i}");
-        }
+            var manager = new ConnectionHub("localhost:6379", 0);
+            var queue = manager.GetMessageQueue("numQueue");
 
-        Console.ReadLine();
+            int i = 0;
+            while (true)
+            {
+                var id = await queue.PublishAsync(new Dictionary<string, string>()
+                {
+                    { "orderId", Guid.NewGuid().ToString() },
+                    { "status", "created" },
+                    { "amount", i.ToString() }
+                });
+                Console.WriteLine(id);
+                i += 1;
+            }
+            Console.ReadLine();
+        }
     }
-}
 ```
 
 ## Consumer
 ```csharp
 internal class Program
-{
-    static async Task Main(string[] args)
     {
-        var manager = new ConnectionHub("localhost", 0);
-        var queue = manager.GetMessageQueue<Data>("numQueue");
-        var tokenSource = new CancellationTokenSource();
-        tokenSource.CancelAfter(TimeSpan.FromDays(6));
+        static async Task Main(string[] args)
+        {
+            var manager = new ConnectionHub("localhost:6379", 0);
+            var consumer = manager.GetMessageConsumer("numQueue", "order-group", "order-processor-1");
 
-        await queue.DequeueMessages(x => {
-            Console.WriteLine($"Recieved -> {x.Foo}");
-        }, tokenSource.Token);
-        Console.ReadLine();
+            consumer.OnMessageReceived += ConsumerOnOnMessageReceived;
+            consumer.StartConsuming();
+            
+            Console.ReadLine();
+            consumer.StopConsuming();
+        }
+
+        private static async Task ConsumerOnOnMessageReceived(ReQueueMessage message)
+        {
+            Console.WriteLine($"Received message: {message.Id}");
+            foreach (var kv in message.Values)
+                Console.WriteLine($" - {kv.Key}: {kv.Value}");
+
+            await Task.CompletedTask;
+        }
     }
-}
 ```
-## Filter Example
-Filters out messages that don't meet set criteria. By default, messages that are filtered out will be readded to the end of the queue.
-```csharp
-queue.DequeueMessages(x => {
-    Console.WriteLine($"Recieved -> {x.Foo}");
-}, tokenSource.Token, data => {
-    if (data.Foo % 2 == 0){
-        return true;
-    }
-    
-    return false;
-});
-```
+## Features
+- Non-blocking asynchronous processing
+- Delegate-based event handling (`OnMessageReceived`)
+- Simple start/stop consumer API
+- Generic message payload support
+- Efficient resource usage
+
 # License
 MIT License
 

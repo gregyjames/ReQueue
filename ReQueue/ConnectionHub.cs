@@ -29,8 +29,13 @@ public class ConnectionHub
     /// <param name="redisKey">The key of the list in redis.</param>
     /// <typeparam name="T">The type of the queue to create.</typeparam>
     /// <returns>A message queue object of specified type.</returns>
-    public MessageQueue<T> GetMessageQueue<T>(string redisKey)
+    public ReQueueProducer GetMessageQueue(string redisKey)
     {
-        return new MessageQueue<T>(_db, redisKey);
+        return new ReQueueProducer(_db, redisKey);
+    }
+
+    public ReQueueConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName)
+    {
+        return new ReQueueConsumer(_db, redisKey,consumerGroup, consumerName);
     }
 }

@@ -7,17 +7,23 @@ namespace RequeueTesterProducer
     {
         static async Task Main(string[] args)
         {
-            var manager = new ConnectionHub("localhost", 0);
-            var queue = manager.GetMessageQueue<Data>("numQueue");
+            var manager = new ConnectionHub("192.168.0.114:6379", 0);
+            var consumer = manager.GetMessageConsumer("numQueue", "order-group", "order-processor-1");
 
-            for (int i = 0; i < 1000; i++)
-            {
-                var item = new Data { Foo = i };
-                await queue.EnqueueMessages(item);
-                Console.WriteLine($"Sending -> {i}");
-            }
-
+            consumer.OnMessageReceived += ConsumerOnOnMessageReceived;
+            consumer.StartConsuming();
+            
             Console.ReadLine();
+            consumer.StopConsuming();
+        }
+
+        private static async Task ConsumerOnOnMessageReceived(ReQueueMessage message)
+        {
+            Console.WriteLine($"Received message: {message.Id}");
+            foreach (var kv in message.Values)
+                Console.WriteLine($" - {kv.Key}: {kv.Value}");
+
+            await Task.CompletedTask;
         }
     }
 }

@@ -6,22 +6,21 @@ namespace ReQueueClient
     {
         static async Task Main(string[] args)
         {
-            var manager = new ConnectionHub("localhost", 0);
-            var queue = manager.GetMessageQueue<Data>("numQueue");
-            var tokenSource = new CancellationTokenSource();
+            var manager = new ConnectionHub("192.168.0.114:6379", 0);
+            var queue = manager.GetMessageQueue("numQueue");
 
-            tokenSource.CancelAfter(TimeSpan.FromSeconds(10));
-
-            await Task.WhenAll(
-                queue.DequeueMessages(x => {
-                    Console.WriteLine($"Recieved -> {x.Foo}");
-                }, tokenSource.Token, (data) => data.Foo % 2 == 0),
-                queue.DequeueMessages(x => {
-                    Console.WriteLine($"Recieved Odd -> {x.Foo}");
-                }, tokenSource.Token, (data) => data.Foo % 2 != 0)
-            );
-
-            await queue.ClearQueue();
+            int i = 0;
+            while (true)
+            {
+                var id = await queue.PublishAsync(new Dictionary<string, string>()
+                {
+                    { "orderId", Guid.NewGuid().ToString() },
+                    { "status", "created" },
+                    { "amount", i.ToString() }
+                });
+                Console.WriteLine(id);
+                i += 1;
+            }
             Console.ReadLine();
         }
     }
