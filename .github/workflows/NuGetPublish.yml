@@ -3,39 +3,48 @@ name: NuGet Publish
 on:
   push:
     tags:
-      - 'v*.*.*' # Specify the tag pattern, e.g., 'v1.0.0'
+      - 'v*.*.*'
+
 jobs:
   deploy:
     name: Deploy
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: | 
-          7.0.x
-    - uses: actions/cache@v2
+        dotnet-version: '7.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
       id: cacheStep
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
+
     - name: Set VERSION variable from tag
       run: |
-        $VERSION=$Env:GITHUB_REF_NAME.TrimStart("v")
+        $VERSION = $Env:GITHUB_REF_NAME.TrimStart("v")
         echo "VERSION=$VERSION" >> $Env:GITHUB_ENV
+
     - name: Restore dependencies
       run: dotnet restore
-    - name: Setup NuGet.exe for use with actions
+
+    - name: Setup NuGet.exe
       uses: NuGet/setup-nuget@v1.0.5
-    - name: Restore NuGet
+
+    - name: Restore NuGet (if cache missed)
       if: steps.cacheStep.outputs.cache-hit != 'true'
       run: nuget restore ReQueue.sln
+
     - name: Build
       run: dotnet build ReQueue/ReQueue.csproj --no-restore --configuration Release /p:Version=$Env:VERSION /p:AssemblyVersion=$Env:VERSION
+
     - name: Publish NuGet package
       run: dotnet nuget push **/*.nupkg --source https://api.nuget.org/v3/index.json --api-key $Env:NUGET_API_KEY
       env:
