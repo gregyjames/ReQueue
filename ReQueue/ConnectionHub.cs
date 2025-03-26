@@ -4,7 +4,6 @@ namespace ReQueue;
 
 public class ConnectionHub
 {
-    private readonly ConnectionMultiplexer _connectionMultiplexer;
     private readonly IDatabase _db;
     
     /// <summary>
@@ -19,10 +18,19 @@ public class ConnectionHub
         {
             throw new ArgumentNullException(nameof(connectionString));
         }
-        _connectionMultiplexer = ConnectionMultiplexer.Connect(connectionString);
-        _db = _connectionMultiplexer.GetDatabase(dbnumber);
+        var connectionMultiplexer = ConnectionMultiplexer.Connect(connectionString);
+        _db = connectionMultiplexer.GetDatabase(dbnumber);
     }
 
+    /// <summary>
+    /// Initialize a new connection hub instance.
+    /// </summary>
+    /// <param name="db">The redis database to use.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the passed in database is null.</exception>
+    public ConnectionHub(IDatabase db)
+    {
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+    }
     /// <summary>
     /// Creates a new queue of the specified type.
     /// </summary>
