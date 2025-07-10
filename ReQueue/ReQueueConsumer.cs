@@ -20,6 +20,7 @@ public class ReQueueConsumer
         _redisKey = redisKey;
         _consumerGroup = consumerGroup;
         _consumerName = consumerName;
+        _cts = new CancellationTokenSource();
         
         _channel = Channel.CreateBounded<ReQueueMessage>(new BoundedChannelOptions(channelCapacity)
         {
@@ -43,11 +44,11 @@ public class ReQueueConsumer
         }
     }
     
-    public void StartConsuming()
+    public async Task StartConsuming(CancellationToken token = default)
     {
-        _cts = new CancellationTokenSource();
-        _ = Task.Run(() => ReadLoopAsync(_cts.Token));
-        _ = Task.Run(() => ProcessLoopAsync(_cts.Token));
+        var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
+        await ReadLoopAsync(linkedToken.Token);
+        await ProcessLoopAsync(linkedToken.Token);
     }
 
     public void StopConsuming()

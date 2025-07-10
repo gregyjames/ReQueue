@@ -33,5 +33,16 @@ namespace ReQueue
 
             return messageId;
         }
+
+        public async Task DeleteAsync()
+        {
+            var groups = _db.StreamGroupInfo(_redisKey);
+
+            foreach (var group in groups)
+            {
+                await _db.StreamDeleteConsumerGroupAsync(_redisKey, group.Name);
+            }
+            await _db.KeyDeleteAsync(_redisKey);
+        }
     }
 }
