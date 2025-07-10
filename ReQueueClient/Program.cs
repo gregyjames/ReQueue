@@ -25,10 +25,9 @@ namespace ReQueueClient
                 {
                     break;
                 }
-                Thread.Sleep(100);
+                Thread.Sleep(50);
             }
             await queue.DeleteAsync();
-            Console.ReadLine();
         }
     }
 }

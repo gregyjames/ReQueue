@@ -10,16 +10,18 @@ public class ReQueueConsumer
     private readonly string _redisKey;
     private readonly string _consumerGroup;
     private readonly string _consumerName;
+    private readonly TimeSpan _keyPollInterval;
     private readonly Channel<ReQueueMessage> _channel;
     private CancellationTokenSource _cts;
     
     public event MessageReceivedHandler OnMessageReceived;
-    public ReQueueConsumer(IDatabase db, string redisKey, string consumerGroup, string consumerName, int channelCapacity = 1000)
+    public ReQueueConsumer(IDatabase db, string redisKey, string consumerGroup, string consumerName, TimeSpan keyPollInterval, int channelCapacity = 1000)
     {
         _db = db;
         _redisKey = redisKey;
         _consumerGroup = consumerGroup;
         _consumerName = consumerName;
+        _keyPollInterval = keyPollInterval;
         _cts = new CancellationTokenSource();
         
         _channel = Channel.CreateBounded<ReQueueMessage>(new BoundedChannelOptions(channelCapacity)
@@ -29,7 +31,6 @@ public class ReQueueConsumer
         });
         
         CreateConsumerGroupIfNotExistsAsync().Wait();
-
     }
     
     private async Task CreateConsumerGroupIfNotExistsAsync()
@@ -47,8 +48,13 @@ public class ReQueueConsumer
     public async Task StartConsuming(CancellationToken token = default)
     {
         var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
-        await ReadLoopAsync(linkedToken.Token);
-        await ProcessLoopAsync(linkedToken.Token);
+        var readTask = ReadLoopAsync(linkedToken.Token);
+        var processTask = ProcessLoopAsync(linkedToken.Token);
+        var deletionTask = WatchForDeletionAsync(_redisKey, () =>
+        {
+            _cts.Cancel();
+        }, _keyPollInterval);
+        await Task.WhenAll(readTask, processTask,deletionTask);
     }
 
     public void StopConsuming()
@@ -56,33 +62,61 @@ public class ReQueueConsumer
         _cts.Cancel();
     }
 
+    public async Task WatchForDeletionAsync(string key, Action onDeleted, TimeSpan pollInterval = default)
+    {
+        pollInterval = pollInterval == default ? TimeSpan.FromSeconds(1) : pollInterval;
+    
+        while (await _db.KeyExistsAsync(key))
+        {
+            await Task.Delay(pollInterval);
+        }
+    
+        onDeleted?.Invoke();
+    }
+    
     private async Task ReadLoopAsync(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        try
         {
-            var entries = await _db.StreamReadGroupAsync(_redisKey, _consumerGroup, _consumerName, ">", count: 10);
-
-            foreach (var entry in entries)
+            while (!token.IsCancellationRequested)
             {
-                var message = ReQueueMessage.FromStreamEntry(entry);
-                await _channel.Writer.WriteAsync(message, token);
+                var entries = await _db.StreamReadGroupAsync(_redisKey, _consumerGroup, _consumerName, ">", count: 10);
+
+                foreach (var entry in entries)
+                {
+                    var message = ReQueueMessage.FromStreamEntry(entry);
+                    await _channel.Writer.WriteAsync(message, token);
+                }
+
+                if (entries.Length == 0)
+                    await Task.Delay(100, token);
             }
-
-            if (entries.Length == 0)
-                await Task.Delay(100, token);
         }
-
-        _channel.Writer.Complete();
+        catch (RedisServerException ex) when (ex.Message.Contains("NOGROUP"))
+        {
+            StopConsuming();
+        }
+        finally
+        {
+            _channel.Writer.Complete();
+        }
     }
 
     private async Task ProcessLoopAsync(CancellationToken token)
     {
-        await foreach (var message in _channel.Reader.ReadAllAsync(token))
+        try
         {
-            if (OnMessageReceived != null)
-                await OnMessageReceived.Invoke(message);
+            await foreach (var message in _channel.Reader.ReadAllAsync(token))
+            {
+                if (OnMessageReceived != null)
+                    await OnMessageReceived.Invoke(message);
 
-            await _db.StreamAcknowledgeAsync(_redisKey, _consumerGroup, message.Id);
+                await _db.StreamAcknowledgeAsync(_redisKey, _consumerGroup, message.Id);
+            }
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        {
+
         }
     }
     
