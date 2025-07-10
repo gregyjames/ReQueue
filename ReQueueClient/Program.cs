@@ -6,9 +6,9 @@ namespace ReQueueClient
     {
         static async Task Main(string[] args)
         {
-            var manager = new ConnectionHub("192.168.0.114:6379", 0);
+            var manager = new ConnectionHub("192.168.0.117:6379", 0);
             var queue = manager.GetMessageQueue("numQueue");
-
+            
             int i = 0;
             while (true)
             {
@@ -20,8 +20,14 @@ namespace ReQueueClient
                 });
                 Console.WriteLine(id);
                 i += 1;
+
+                if (i == 100)
+                {
+                    break;
+                }
+                Thread.Sleep(50);
             }
-            Console.ReadLine();
+            await queue.DeleteAsync();
         }
     }
 }

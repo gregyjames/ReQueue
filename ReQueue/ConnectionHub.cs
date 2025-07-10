@@ -42,8 +42,8 @@ public class ConnectionHub
         return new ReQueueProducer(_db, redisKey);
     }
 
-    public ReQueueConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName)
+    public ReQueueConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName, TimeSpan pollInterval)
     {
-        return new ReQueueConsumer(_db, redisKey,consumerGroup, consumerName);
+        return new ReQueueConsumer(_db, redisKey,consumerGroup, consumerName, pollInterval);
     }
 }
