@@ -2,20 +2,23 @@
 
 namespace ReQueue
 {
-    public class ReQueueProducer
+    public class ReQueueProducer: IAsyncDisposable
     {
         private readonly IDatabase _db;
         private readonly string _redisKey;
+        private readonly bool _autoDeleteOnExit;
 
         /// <summary>
         /// Create a new client object.
         /// </summary>
         /// <param name="database">The redis database to use.</param>
         /// <param name="redisKey">The name of the redis list.</param>
-        internal ReQueueProducer(IDatabase database, string redisKey)
+        /// <param name="autoDeleteOnExit">Delete the queue when disposed.</param>
+        internal ReQueueProducer(IDatabase database, string redisKey, bool autoDeleteOnExit = false)
         {
             _db = database;
             _redisKey = redisKey;
+            _autoDeleteOnExit = autoDeleteOnExit;
         }
 
         public async Task<string> PublishAsync(Dictionary<string, string> message)
@@ -43,6 +46,14 @@ namespace ReQueue
                 await _db.StreamDeleteConsumerGroupAsync(_redisKey, group.Name);
             }
             await _db.KeyDeleteAsync(_redisKey);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_autoDeleteOnExit)
+            {
+                await DeleteAsync();
+            }
         }
     }
 }

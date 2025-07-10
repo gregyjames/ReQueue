@@ -1,4 +1,7 @@
-﻿using ReQueue;
+﻿using Microsoft.Extensions.Logging;
+using ReQueue;
+using Serilog;
+using ILogger = Serilog.ILogger;
 
 namespace ReQueueClient
 {
@@ -6,6 +9,8 @@ namespace ReQueueClient
     {
         static async Task Main(string[] args)
         {
+            var factory = new LoggerFactory().AddSerilog(new LoggerConfiguration().WriteTo.Console().CreateLogger());
+            var logger = factory.CreateLogger<ReQueueProducer>();   
             var manager = new ConnectionHub("192.168.0.117:6379", 0);
             var queue = manager.GetMessageQueue("numQueue");
             

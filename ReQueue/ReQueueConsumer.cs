@@ -1,4 +1,6 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using StackExchange.Redis;
 
 namespace ReQueue;
@@ -13,9 +15,10 @@ public class ReQueueConsumer
     private readonly TimeSpan _keyPollInterval;
     private readonly Channel<ReQueueMessage> _channel;
     private CancellationTokenSource _cts;
-    
-    public event MessageReceivedHandler OnMessageReceived;
-    public ReQueueConsumer(IDatabase db, string redisKey, string consumerGroup, string consumerName, TimeSpan keyPollInterval, int channelCapacity = 1000)
+    private readonly ILogger<ReQueueConsumer> _logger;
+
+    public event MessageReceivedHandler? OnMessageReceived;
+    public ReQueueConsumer(IDatabase db, string redisKey, string consumerGroup, string consumerName, TimeSpan keyPollInterval, int channelCapacity = 1000, ILogger<ReQueueConsumer>? logger = null)
     {
         _db = db;
         _redisKey = redisKey;
@@ -23,7 +26,7 @@ public class ReQueueConsumer
         _consumerName = consumerName;
         _keyPollInterval = keyPollInterval;
         _cts = new CancellationTokenSource();
-        
+        _logger = logger ?? NullLogger<ReQueueConsumer>.Instance;
         _channel = Channel.CreateBounded<ReQueueMessage>(new BoundedChannelOptions(channelCapacity)
         {
             SingleReader = true,
@@ -38,6 +41,7 @@ public class ReQueueConsumer
         try
         {
             await _db.StreamCreateConsumerGroupAsync(_redisKey, _consumerGroup, StreamPosition.NewMessages);
+            _logger.LogDebug("Created consumer group: {consumerGroupName}", _consumerGroup);
         }
         catch (RedisServerException ex) when (ex.Message.Contains("BUSYGROUP"))
         {
@@ -47,19 +51,26 @@ public class ReQueueConsumer
     
     public async Task StartConsuming(CancellationToken token = default)
     {
-        var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
-        var readTask = ReadLoopAsync(linkedToken.Token);
-        var processTask = ProcessLoopAsync(linkedToken.Token);
+        _cts = new();
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
+        _logger.LogInformation("Starting consumer {consumerName} in group {consumerGroupName}", _consumerName, _consumerGroup);
         var deletionTask = WatchForDeletionAsync(_redisKey, () =>
         {
-            _cts.Cancel();
+            _logger.LogWarning("The queue {redisKey} has been deleted.", _redisKey);
+            StopConsuming();
         }, _keyPollInterval);
-        await Task.WhenAll(readTask, processTask,deletionTask);
+        var readTask = ReadLoopAsync(_cts.Token);
+        var processTask = ProcessLoopAsync(_cts.Token);
+        await Task.WhenAll(readTask, processTask, deletionTask);
     }
 
     public void StopConsuming()
     {
-        _cts.Cancel();
+        if (!_cts.IsCancellationRequested)
+        {
+            _logger.LogInformation("Stopping consumer {consumerName} in group {consumerGroupName}", _consumerName, _consumerGroup);
+            _cts.Cancel();
+        }
     }
 
     public async Task WatchForDeletionAsync(string key, Action onDeleted, TimeSpan pollInterval = default)
@@ -70,7 +81,7 @@ public class ReQueueConsumer
         {
             await Task.Delay(pollInterval);
         }
-    
+        
         onDeleted?.Invoke();
     }
     
@@ -85,14 +96,19 @@ public class ReQueueConsumer
                 foreach (var entry in entries)
                 {
                     var message = ReQueueMessage.FromStreamEntry(entry);
+                    _logger.LogTrace("Received message: {messageId} in {consumerGroupName} on {consumerName}", message.Id, _consumerGroup, _consumerName);
                     await _channel.Writer.WriteAsync(message, token);
                 }
 
                 if (entries.Length == 0)
-                    await Task.Delay(100, token);
+                    await Task.Delay(_keyPollInterval, token);
             }
         }
         catch (RedisServerException ex) when (ex.Message.Contains("NOGROUP"))
+        {
+            StopConsuming();
+        }
+        catch (TaskCanceledException ex)
         {
             StopConsuming();
         }
@@ -116,32 +132,7 @@ public class ReQueueConsumer
         }
         catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
         {
-
+            _logger.LogDebug("Message listener loop is cancelled.");
         }
-    }
-    
-    public async Task<List<ReQueueMessage>> ConsumeAsync(int count = 10)
-    {
-        var result = new List<ReQueueMessage>();
-        var entries = await _db.StreamReadGroupAsync(_redisKey, _consumerGroup, _consumerName, ">", count);
-
-        foreach (var entry in entries)
-        {
-            result.Add(ReQueueMessage.FromStreamEntry(entry));
-            await _db.StreamAcknowledgeAsync(_redisKey, _consumerGroup, entry.Id);
-        }
-
-        return result;
-    }
-    
-    public async Task<List<ReQueueMessage>> ConsumePendingAsync(int count = 10)
-    {
-        var result = new List<ReQueueMessage>();
-        var entries = await _db.StreamReadGroupAsync(_redisKey, _consumerGroup, _consumerName, "0-0", count);
-
-        foreach (var entry in entries)
-            result.Add(ReQueueMessage.FromStreamEntry(entry));
-
-        return result;
     }
 }
