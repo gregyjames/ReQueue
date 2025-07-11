@@ -16,7 +16,12 @@ namespace RequeueTesterProducer
                                             .CreateLogger();
             
             var factory = new LoggerFactory().AddSerilog(configuration);
-            var manager = new ConnectionHub("192.168.0.117:6379", 0, factory);
+            var manager = new ConnectionHub(options =>
+            {
+                options.ConnectionString = "192.168.0.117:6379";
+                options.DB = 0;
+            }, factory);
+            
             var consumer = manager.GetMessageConsumer("numQueue", $"order-group-{Guid.NewGuid():N}", "order-processor-1", TimeSpan.FromSeconds(1));
 
             consumer.OnMessageReceived += ConsumerOnOnMessageReceived;

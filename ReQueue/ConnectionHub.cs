@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace ReQueue;
@@ -8,23 +9,47 @@ public class ConnectionHub
 {
     private readonly IDatabase _db;
     private readonly ILoggerFactory _factory;
+    private readonly RedisOptions _options;
 
     /// <summary>
     /// Initialize a new connection hub instance.
     /// </summary>
-    /// <param name="connectionString">The connection string of the redis database to use.</param>
-    /// <param name="dbnumber">The number of the database to use.</param>
+    /// <param name="options">Options for redis configuration.</param>
     /// <param name="loggerFactory">The Logging factory to use</param>
     /// <exception cref="ArgumentNullException"></exception>
-    public ConnectionHub(string connectionString, int dbnumber = 0, ILoggerFactory? loggerFactory = null)
+    public ConnectionHub(IOptions<RedisOptions> options, ILoggerFactory? loggerFactory = null)
     {
         _factory = loggerFactory ?? NullLoggerFactory.Instance;
-        if (string.IsNullOrEmpty(connectionString))
+        _options = options.Value;
+        
+        //todo: validate options
+        
+        var connectionMultiplexer = ConnectionMultiplexer.Connect(_options.ConnectionString, options =>
         {
-            throw new ArgumentNullException(nameof(connectionString));
-        }
-        var connectionMultiplexer = ConnectionMultiplexer.Connect(connectionString);
-        _db = connectionMultiplexer.GetDatabase(dbnumber);
+            options.User = _options.Username;
+            options.Password = _options.Password;
+            options.Ssl = _options.UseSsl;
+        });
+        
+        _db = connectionMultiplexer.GetDatabase(_options.DB);
+    }
+
+    public ConnectionHub(Action<RedisOptions> options, ILoggerFactory? loggerFactory = null)
+    {
+        _factory = loggerFactory ?? NullLoggerFactory.Instance;
+        _options = new RedisOptions();
+        options.Invoke(_options);
+        
+        //todo: validate options
+        
+        var connectionMultiplexer = ConnectionMultiplexer.Connect(_options.ConnectionString, options =>
+        {
+            options.User = _options.Username;
+            options.Password = _options.Password;
+            options.Ssl = _options.UseSsl;
+        });
+        
+        _db = connectionMultiplexer.GetDatabase(_options.DB);
     }
 
     /// <summary>
