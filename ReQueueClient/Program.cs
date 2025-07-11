@@ -9,9 +9,13 @@ namespace ReQueueClient
     {
         static async Task Main(string[] args)
         {
-            var factory = new LoggerFactory().AddSerilog(new LoggerConfiguration().WriteTo.Console().CreateLogger());
-            var logger = factory.CreateLogger<ReQueueProducer>();   
-            var manager = new ConnectionHub("192.168.0.117:6379", 0);
+            var configuration = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .WriteTo.Console()
+                .CreateLogger();
+            
+            var factory = new LoggerFactory().AddSerilog(configuration); 
+            var manager = new ConnectionHub("192.168.0.117:6379", 0, factory);
             var queue = manager.GetMessageQueue("numQueue");
             
             int i = 0;
@@ -23,7 +27,6 @@ namespace ReQueueClient
                     { "status", "created" },
                     { "amount", i.ToString() }
                 });
-                Console.WriteLine(id);
                 i += 1;
 
                 if (i == 100)

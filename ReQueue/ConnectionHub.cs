@@ -45,7 +45,8 @@ public class ConnectionHub
     /// <returns>A message queue object of specified type.</returns>
     public ReQueueProducer GetMessageQueue(string redisKey, bool autoDelete = false)
     {
-        return new ReQueueProducer(_db, redisKey, autoDelete);
+        var logger = _factory.CreateLogger<ReQueueProducer>();
+        return new ReQueueProducer(_db, redisKey, autoDelete, logger);
     }
 
     public ReQueueConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName,  TimeSpan pollInterval, int channelCapacity = 10000)
