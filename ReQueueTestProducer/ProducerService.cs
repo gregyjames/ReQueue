@@ -2,24 +2,16 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ReQueue.Interfaces;
 
-namespace RequeueTesterProducer;
+namespace ReQueueTestProducer;
 
-public class ProducerService: BackgroundService
+public class ProducerService(ILogger<ProducerService> logger, IConnectionHub hub, IHostApplicationLifetime appLifetime)
+    : BackgroundService
 {
-    private readonly ILogger<ProducerService> _logger;
-    private readonly IConnectionHub _hub;
-    private readonly IHostApplicationLifetime _appLifetime;
-
-    public ProducerService(ILogger<ProducerService> logger, IConnectionHub hub, IHostApplicationLifetime appLifetime)
-    {
-        _logger = logger;
-        _hub = hub;
-        _appLifetime = appLifetime;
-    }
-    
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var queue = _hub.GetMessageProducer("numQueue");
+        logger.LogInformation("Producer service is running.");
+        
+        var queue = hub.GetMessageProducer("numQueue");
             
         int i = 0;
         while (stoppingToken.IsCancellationRequested == false)
@@ -41,6 +33,6 @@ public class ProducerService: BackgroundService
             await Task.Delay(1000, stoppingToken);
         }
         await queue.DeleteAsync();
-        _appLifetime.StopApplication();
+        appLifetime.StopApplication();
     }
 }

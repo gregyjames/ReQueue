@@ -5,12 +5,12 @@ VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReQueue", "ReQueue\ReQueue.csproj", "{9BEDA4F8-66B9-43D4-8D83-E78B5FE3E09D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RequeueTesterProducer", "RequeueTesterProducer\RequeueTesterProducer.csproj", "{4EF724B0-6D81-4847-AF1E-D47B7EDFD0EB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReQueueTestProducer", "ReQueueTestProducer\ReQueueTestProducer.csproj", "{4EF724B0-6D81-4847-AF1E-D47B7EDFD0EB}"
 	ProjectSection(ProjectDependencies) = postProject
 		{9BEDA4F8-66B9-43D4-8D83-E78B5FE3E09D} = {9BEDA4F8-66B9-43D4-8D83-E78B5FE3E09D}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReQueueClient", "ReQueueClient\ReQueueClient.csproj", "{87E47AB4-1DA2-4241-963E-730BEA6EAFA8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReQueueTestConsumer", "ReQueueTestConsumer\ReQueueTestConsumer.csproj", "{87E47AB4-1DA2-4241-963E-730BEA6EAFA8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

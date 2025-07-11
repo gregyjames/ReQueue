@@ -10,7 +10,8 @@ public class ConnectionHub: IConnectionHub
 {
     private readonly IDatabase _db;
     private readonly ILoggerFactory _factory;
-    private readonly RedisOptions _options;
+    private readonly RedisOptions? _options;
+    private readonly ILogger<ConnectionHub> _logger;
 
     /// <summary>
     /// Initialize a new connection hub instance.
@@ -21,9 +22,10 @@ public class ConnectionHub: IConnectionHub
     public ConnectionHub(IOptions<RedisOptions> options, ILoggerFactory? loggerFactory = null)
     {
         _factory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _factory.CreateLogger<ConnectionHub>();
         _options = options.Value;
         
-        //todo: validate options
+        ValidateOptions();
         
         var connectionMultiplexer = ConnectionMultiplexer.Connect(_options.ConnectionString, options =>
         {
@@ -43,10 +45,11 @@ public class ConnectionHub: IConnectionHub
     public ConnectionHub(Action<RedisOptions> options, ILoggerFactory? loggerFactory = null)
     {
         _factory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _factory.CreateLogger<ConnectionHub>();
         _options = new RedisOptions();
         options.Invoke(_options);
         
-        //todo: validate options
+        ValidateOptions();
         
         var connectionMultiplexer = ConnectionMultiplexer.Connect(_options.ConnectionString, options =>
         {
@@ -68,6 +71,7 @@ public class ConnectionHub: IConnectionHub
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _factory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _factory.CreateLogger<ConnectionHub>();
     }
 
     /// <summary>
@@ -86,5 +90,41 @@ public class ConnectionHub: IConnectionHub
     {
         var logger = _factory.CreateLogger<ReQueueConsumer>();
         return new ReQueueConsumer(_db, redisKey,consumerGroup, consumerName, pollInterval, channelCapacity, logger);
+    }
+
+    private void ValidateOptions()
+    {
+        if (string.IsNullOrWhiteSpace(_options.ConnectionString))
+        {
+            throw new ArgumentException("ConnectionString cannot be null, empty, or whitespace.", nameof(_options.ConnectionString));
+        }
+
+        if (_options.DB < 0 || _options.DB > 15)
+        {
+            throw new ArgumentException("Database number must be between 0 and 15.", nameof(_options.DB));
+        }
+
+        // Validate connection string format
+        if (!_options.ConnectionString.Contains(":"))
+        {
+            _logger.LogWarning("ConnectionString does not contain host and port (e.g., 'localhost:6379').");
+        }
+
+        // Validate SSL configuration
+        if (_options.UseSsl && !_options.ConnectionString.Contains("ssl=true"))
+        {
+            _logger.LogWarning("UseSsl is enabled but 'ssl=true' is not in the connection string. SSL may not work as expected.");
+        }
+
+        // Validate authentication if provided
+        if (!string.IsNullOrWhiteSpace(_options.Username) && string.IsNullOrWhiteSpace(_options.Password))
+        {
+            throw new ArgumentException("Password is required when Username is provided.", nameof(_options.Password));
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.Username) && !string.IsNullOrWhiteSpace(_options.Password))
+        {
+            throw new ArgumentException("Username is required when Password is provided.", nameof(_options.Username));
+        }
     }
 }
