@@ -1,5 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using ReQueue;
+using ReQueue.Extensions;
 using Serilog;
 using ILogger = Serilog.ILogger;
 
@@ -9,37 +13,19 @@ namespace ReQueueClient
     {
         static async Task Main(string[] args)
         {
-            var configuration = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .WriteTo.Console()
-                .CreateLogger();
-            
-            var factory = new LoggerFactory().AddSerilog(configuration); 
-            var manager = new ConnectionHub(options =>
-            {
-                options.ConnectionString = "192.168.0.117:6379";
-                options.DB = 0;
-            }, factory);
-            var queue = manager.GetMessageProducer("numQueue");
-            
-            int i = 0;
-            while (true)
-            {
-                var id = await queue.PublishAsync(new Dictionary<string, string>()
+            await Host
+                .CreateDefaultBuilder(args)
+                .UseSerilog((context, configuration) =>
                 {
-                    { "orderId", Guid.NewGuid().ToString() },
-                    { "status", "created" },
-                    { "amount", i.ToString() }
-                });
-                i += 1;
-
-                if (i == 100)
+                    configuration.MinimumLevel.Verbose().WriteTo.Console();
+                })
+                .ConfigureAppConfiguration(cfg => cfg.AddJsonFile("appsettings.json"))
+                .ConfigureServices(cfg =>
                 {
-                    break;
-                }
-                Thread.Sleep(50);
-            }
-            await queue.DeleteAsync();
+                    cfg.AddHostedService<ConsumerService>();
+                })
+                .AddReQueue()
+                .RunConsoleAsync();
         }
     }
 }
