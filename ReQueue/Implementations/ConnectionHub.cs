@@ -35,6 +35,11 @@ public class ConnectionHub: IConnectionHub
         _db = connectionMultiplexer.GetDatabase(_options.DB);
     }
 
+    /// <summary>
+    /// Initialize a new connection hub instance.
+    /// </summary>
+    /// <param name="options">The method used to configure the Redis instance.</param>
+    /// <param name="loggerFactory">The Logging factory to use.</param>
     public ConnectionHub(Action<RedisOptions> options, ILoggerFactory? loggerFactory = null)
     {
         _factory = loggerFactory ?? NullLoggerFactory.Instance;
@@ -57,10 +62,12 @@ public class ConnectionHub: IConnectionHub
     /// Initialize a new connection hub instance.
     /// </summary>
     /// <param name="db">The redis database to use.</param>
+    /// <param name="loggerFactory">The Logging factory to use.</param>
     /// <exception cref="ArgumentNullException">Thrown if the passed in database is null.</exception>
-    public ConnectionHub(IDatabase db)
+    public ConnectionHub(IDatabase db, ILoggerFactory? loggerFactory = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
+        _factory = loggerFactory ?? NullLoggerFactory.Instance;
     }
 
     /// <summary>
