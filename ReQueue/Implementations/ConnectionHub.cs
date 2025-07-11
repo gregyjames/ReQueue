@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using ReQueue.Interfaces;
 using StackExchange.Redis;
 
 namespace ReQueue;
 
-public class ConnectionHub
+public class ConnectionHub: IConnectionHub
 {
     private readonly IDatabase _db;
     private readonly ILoggerFactory _factory;
@@ -68,13 +69,13 @@ public class ConnectionHub
     /// <param name="redisKey">The key of the list in redis.</param>
     /// <param name="autoDelete">Delete the queue when disposed.</param>
     /// <returns>A message queue object of specified type.</returns>
-    public ReQueueProducer GetMessageQueue(string redisKey, bool autoDelete = false)
+    public IProducer GetMessageProducer(string redisKey, bool autoDelete = false)
     {
         var logger = _factory.CreateLogger<ReQueueProducer>();
         return new ReQueueProducer(_db, redisKey, autoDelete, logger);
     }
 
-    public ReQueueConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName,  TimeSpan pollInterval, int channelCapacity = 10000)
+    public IConsumer GetMessageConsumer(string redisKey, string consumerGroup, string consumerName,  TimeSpan pollInterval, int channelCapacity = 10000)
     {
         var logger = _factory.CreateLogger<ReQueueConsumer>();
         return new ReQueueConsumer(_db, redisKey,consumerGroup, consumerName, pollInterval, channelCapacity, logger);

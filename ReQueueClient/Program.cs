@@ -20,7 +20,7 @@ namespace ReQueueClient
                 options.ConnectionString = "192.168.0.117:6379";
                 options.DB = 0;
             }, factory);
-            var queue = manager.GetMessageQueue("numQueue");
+            var queue = manager.GetMessageProducer("numQueue");
             
             int i = 0;
             while (true)
