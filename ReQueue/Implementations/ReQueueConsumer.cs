@@ -1,12 +1,13 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using ReQueue.Interfaces;
 using StackExchange.Redis;
 
 namespace ReQueue;
 
 public delegate Task MessageReceivedHandler(ReQueueMessage message);
-public class ReQueueConsumer
+public class ReQueueConsumer: IConsumer
 {
     private readonly IDatabase _db;
     private readonly string _redisKey;

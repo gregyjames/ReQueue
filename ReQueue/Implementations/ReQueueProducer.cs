@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using ReQueue.Interfaces;
 using StackExchange.Redis;
 
 namespace ReQueue
 {
-    public class ReQueueProducer: IAsyncDisposable
+    public class ReQueueProducer: IAsyncDisposable, IProducer
     {
         private readonly IDatabase _db;
         private readonly string _redisKey;
