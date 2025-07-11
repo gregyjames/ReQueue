@@ -15,7 +15,11 @@ namespace ReQueueClient
                 .CreateLogger();
             
             var factory = new LoggerFactory().AddSerilog(configuration); 
-            var manager = new ConnectionHub("192.168.0.117:6379", 0, factory);
+            var manager = new ConnectionHub(options =>
+            {
+                options.ConnectionString = "192.168.0.117:6379";
+                options.DB = 0;
+            }, factory);
             var queue = manager.GetMessageQueue("numQueue");
             
             int i = 0;
